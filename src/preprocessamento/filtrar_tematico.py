@@ -1,6 +1,7 @@
 """Filtro temático, extração de label e persistência em parquet."""
 
 import logging
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -58,16 +59,57 @@ def inspecionar_colunas(caminho_csv: str | Path) -> pd.DataFrame:
 
 
 def _extrair_label(situacao: str | None) -> str | None:
-    """Mapeia o valor de SITUACAO para uma das 3 classes ou None."""
+    """Mapeia o valor de SITUACAO para uma das 3 classes ou None.
+
+    Formato antigo do CSV TCU: SITUACAO continha o desfecho diretamente
+    ("IRREGULAR", "REGULAR COM RESSALVA", "REGULAR").
+    No formato atual (2020+) SITUACAO = "OFICIALIZADO" (status de publicação).
+    """
     if pd.isna(situacao) or situacao is None:
         return None
     s = str(situacao).lower().strip()
+    if s in ("", "oficializado"):
+        return None
     if "irregular" in s:
         return "Irregular"
     if "ressalva" in s:
         return "Regular com Ressalva"
     if s.startswith("regular"):
         return "Regular"
+    return None
+
+
+def _extrair_label_from_row(row: pd.Series) -> str | None:
+    """Extrai o desfecho tentando SITUACAO, SUMARIO e ACORDAO (nessa ordem).
+
+    No formato atual do TCU (2020+), SITUACAO = "OFICIALIZADO" para todos os
+    registros. O desfecho real aparece como keyword estruturada no SUMARIO
+    ("CONTAS IRREGULARES", "CONTAS REGULARES COM RESSALVA", "CONTAS REGULARES")
+    ou no dispositivo do ACORDAO ("julgar irregulares...").
+    """
+    # 1. Formato antigo
+    label = _extrair_label(row.get("SITUACAO", ""))
+    if label is not None:
+        return label
+
+    # 2. SUMARIO — keywords estruturados no cabeçalho da ementa
+    sumario = str(row.get("SUMARIO", "") or "").lower()
+    if re.search(r"\bcontas?\s+irregulares?\b", sumario):
+        return "Irregular"
+    if re.search(r"\bcontas?\s+regulares?\s+com\s+ressalva\b", sumario):
+        return "Regular com Ressalva"
+    if re.search(r"\bcontas?\s+regulares?\b", sumario):
+        return "Regular"
+
+    # 3. ACORDAO — dispositivo da decisão
+    acordao = str(row.get("ACORDAO", "") or "").lower()
+    if re.search(r"\bjulgar?\s+irregulares?\b", acordao):
+        return "Irregular"
+    if re.search(r"\bjulgar?\s+regulares?\s+com\s+ressalva\b", acordao):
+        return "Regular com Ressalva"
+    if re.search(r"\bjulgar?\s+regulares?\b", acordao):
+        return "Regular"
+
     return None
 
 
@@ -141,8 +183,8 @@ def combinar_anos(
     df = pd.concat(dfs, ignore_index=True)
     logger.info("Total carregado: %d acórdãos (%d anos)", len(df), len(dfs))
 
-    # Extrai label
-    df["LABEL"] = df["SITUACAO"].apply(_extrair_label)
+    # Extrai label (usa SITUACAO → SUMARIO → ACORDAO, nessa ordem)
+    df["LABEL"] = df.apply(_extrair_label_from_row, axis=1)
     n_sem_label = df["LABEL"].isna().sum()
     df = df.dropna(subset=["LABEL"]).copy()
     logger.info("Após extração de label: %d acórdãos (%d descartados sem label)", len(df), n_sem_label)
