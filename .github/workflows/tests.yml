@@ -1,0 +1,36 @@
+name: Testes
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Instalar dependências (sem torch/GPU)
+        run: |
+          pip install --upgrade pip
+          pip install pandas pyarrow numpy scikit-learn scipy nltk pytest pytest-cov
+
+      - name: Rodar testes
+        run: |
+          python -m pytest tests/ -v -k "not download and not truncar and not head_tail" \
+            --cov=src --cov-report=term-missing --cov-report=xml
+
+      - name: Upload cobertura
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
