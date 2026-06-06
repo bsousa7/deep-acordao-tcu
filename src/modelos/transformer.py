@@ -24,7 +24,7 @@ TRAIN_PARAMS = dict(
     num_train_epochs=5,
     per_device_train_batch_size=16,
     per_device_eval_batch_size=32,
-    learning_rate=1e-5,
+    learning_rate=3e-5,
     weight_decay=0.01,
     warmup_ratio=0.10,
     lr_scheduler_type="linear",
@@ -39,8 +39,8 @@ TRAIN_PARAMS = dict(
 )
 
 LORA_CONFIG_PARAMS = dict(
-    r=8,
-    lora_alpha=16,
+    r=16,
+    lora_alpha=32,
     lora_dropout=0.1,
     target_modules=["query", "value"],
     bias="none",
