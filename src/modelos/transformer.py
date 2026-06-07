@@ -82,6 +82,20 @@ def _aplicar_lora(model):
         **LORA_CONFIG_PARAMS,
     )
     model = get_peft_model(model, config)
+
+    # O pooler (bert.pooler.dense) está ausente no checkpoint do LegalBert-pt:
+    # é inicializado aleatoriamente e depois congelado pelo LoRA.
+    # Com pooler aleatório + congelado, o tanh satura → todas as representações
+    # do [CLS] ficam iguais → classificador não aprende (F1 trava).
+    # Solução: descongelar o pooler para que seja treinado junto com os adapters.
+    n_pooler = 0
+    for name, param in model.named_parameters():
+        if "pooler" in name:
+            param.requires_grad = True
+            n_pooler += param.numel()
+    if n_pooler:
+        logger.info("Pooler descongelado: %d parâmetros adicionais treináveis", n_pooler)
+
     model.print_trainable_parameters()
     return model
 
