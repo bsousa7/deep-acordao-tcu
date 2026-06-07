@@ -55,6 +55,7 @@ LORA_CONFIG_PARAMS = dict(
 def _carregar_modelo(num_labels: int = 3) -> tuple:
     """Carrega tokenizer e modelo LegalBert-pt. Fallback para BERTimbau."""
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
+    import torch
 
     for nome in [MODEL_NAME, MODEL_FALLBACK]:
         try:
@@ -66,6 +67,17 @@ def _carregar_modelo(num_labels: int = 3) -> tuple:
                 label2id=LABEL2ID,
                 ignore_mismatched_sizes=True,
             )
+            # Reinicializa o pooler com std=0.02 (BERT-style) se ausente no checkpoint.
+            # A inicialização padrão do PyTorch (kaiming_uniform) produz pesos grandes
+            # que saturam o tanh do pooler → gradiente ≈ 0 → travamento intermitente.
+            std = getattr(model.config, "initializer_range", 0.02)
+            try:
+                dense = model.bert.pooler.dense
+                torch.nn.init.normal_(dense.weight, mean=0.0, std=std)
+                torch.nn.init.zeros_(dense.bias)
+                logger.info("Pooler reinicializado: std=%.4f", std)
+            except AttributeError:
+                pass
             logger.info("Modelo carregado: %s", nome)
             return tokenizer, model
         except Exception as exc:
