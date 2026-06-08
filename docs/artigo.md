@@ -2,7 +2,8 @@
 
 **Bruno Aires¹ · Candice Trigueiro¹ · Rafael Ayoroa¹**
 
-¹ Programa de Pós-Graduação — [Instituição]
+¹ Mestrado em Administração Pública — Ciência de Dados e Inteligência Artificial
+Instituto Brasileiro de Ensino, Desenvolvimento e Pesquisa (IDP)
 
 `bruno.aires9@gmail.com`
 
