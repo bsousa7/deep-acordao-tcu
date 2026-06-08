@@ -35,6 +35,7 @@ TRAIN_PARAMS = dict(
     greater_is_better=True,
     seed=RANDOM_STATE,
     fp16=True,
+    logging_steps=50,
     report_to="none",
 )
 
@@ -75,9 +76,9 @@ def _carregar_modelo(num_labels: int = 3) -> tuple:
                 dense = model.bert.pooler.dense
                 torch.nn.init.normal_(dense.weight, mean=0.0, std=std)
                 torch.nn.init.zeros_(dense.bias)
-                logger.info("Pooler reinicializado: std=%.4f", std)
+                print(f"[POOLER REINIT] std={std:.4f}, weight_norm={dense.weight.norm():.4f}")
             except AttributeError:
-                pass
+                print("[POOLER REINIT] pooler não encontrado — ignorando")
             logger.info("Modelo carregado: %s", nome)
             return tokenizer, model
         except Exception as exc:
@@ -123,10 +124,14 @@ def _calcular_class_weights(y: list[int]):
 
     classes = np.unique(y)
     weights = compute_class_weight("balanced", classes=classes, y=np.array(y))
+    # Normaliza pela média para manter a escala do loss próxima de 1.0
+    # Evita overflow em fp16 com pesos extremos (ex.: 10.9×)
+    weights = weights / weights.mean()
     # Garante ordem correta para todas as 3 classes
     weight_tensor = torch.ones(len(NOMES_CLASSES))
     for cls_idx, weight in zip(classes, weights):
         weight_tensor[cls_idx] = float(weight)
+    print(f"[CLASS WEIGHTS] {[f'{w:.3f}' for w in weight_tensor.tolist()]}")
     return weight_tensor
 
 
