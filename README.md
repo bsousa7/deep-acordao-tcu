@@ -13,14 +13,16 @@ Jurimetria preditiva em acórdãos do Tribunal de Contas da União (TCU) nas ár
 
 ## Resultados (Ablação 2×2)
 
-| Arquitetura | Campo | F1-macro | Acurácia |
-|---|---|---|---|
-| TF-IDF + LogisticRegression | SUMARIO | — | — |
-| TF-IDF + LogisticRegression | VOTO | — | — |
-| LegalBert-pt head+tail | SUMARIO | — | — |
-| LegalBert-pt head+tail | VOTO | — | — |
+Corpus: 4.444 acórdãos TCU — Saúde e Educação, 2016–2024. Validação cruzada 5-fold estratificada.
 
-*Preencher após execução real em `notebooks/00_projeto_completo.ipynb`.*
+| Arquitetura | Campo | F1-macro | IC 95% | Acurácia |
+|---|---|---|---|---|
+| TF-IDF + LogisticRegression | SUMARIO | **0,7477** | [0,687; 0,809] | 0,9498 |
+| TF-IDF + LogisticRegression | VOTO | 0,5536 | [0,522; 0,585] | 0,9395 |
+| LegalBert-pt + LoRA | VOTO | 0,4180 | [0,365; 0,471] | 0,9325 |
+| LegalBert-pt + LoRA | SUMARIO | 0,4095 | [0,379; 0,440] | 0,9135 |
+
+Threshold ótimo (custo FN=10×FP): **0,08** → Recall-Irregular = 1,000 · Precision = 0,949
 
 ## Instalação
 
